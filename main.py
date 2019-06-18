@@ -78,7 +78,7 @@ for row in trs:
                                     for preRequisiteStr in preRequisites:
                                         if(flagNoPreriquisites):
                                             break
-                                        preRequisitesDict = {}
+                                        preRequisitesDict = []
 
                                         preRequisiteDict = re.split(
                                             r"<strong>\s+E\s+<\/strong>", preRequisiteStr)
@@ -100,7 +100,7 @@ for row in trs:
                                             singlePreRequisiteMatch = re.search(
                                                 r"\s*([A-Z#]+)\s*(\d+)\s*(.+)\s*", singlePreRequisite)
 
-                                            preRequisitesDict.update({
+                                            preRequisitesDict.append({
                                                 "departAcronym": singlePreRequisiteMatch.group(1),
                                                 "courseCode": singlePreRequisiteMatch.group(2),
                                                 "courseName": singlePreRequisiteMatch.group(3)
