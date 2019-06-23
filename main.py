@@ -4,6 +4,19 @@ from time import sleep
 import re
 import json
 
+
+class Course:
+    def __init__(self, code="000000", departAcronym="SIGLA", name="NOME"):
+        self.code = code
+        self.departAcronym = departAcronym
+        self.name = name
+
+
+class Department:
+    def __init__(self, course):
+        self.course = course
+
+
 site = requests.get(
     "https://matriculaweb.unb.br/graduacao/oferta_dep.aspx?cod=1")
 
@@ -37,81 +50,114 @@ for row in trs:
                 departOfferTds = departOfferRow.find_all("td")
 
                 if(departOfferTds.__len__() > 0):
-                    preRequisitesDictArray = []  # TODO: rename
                     flagNoPreriquisites = False
 
-                    courseCode = int(departOfferTds[0].get_text())
-                    courseName = departOfferTds[1].get_text()
-                    courseOfferDataLink = departOfferTds[1].a["href"]
-                    courseSyllabusLink = departOfferTds[2].a["href"].replace(
+                    orgaoCurso = ""
+                    codigoCurso = int(departOfferTds[0].get_text())
+                    nomeCurso = departOfferTds[1].get_text()
+                    nivelCurso = ""
+                    incioVigenciaCurso = ""
+                    preRequisitosDictArray = []
+                    ementaCurso = ""
+                    programaCurso = ""
+                    bibliografiaCurso = ""
+
+                    linkOfertaCurso = departOfferTds[1].a["href"]
+                    linkEmentaCurso = departOfferTds[2].a["href"].replace(
                         "/graduacao/", "")
 
                     print(
-                        f"Codigo da disciplina: {courseCode}\tNome da disciplina: {courseName}")
+                        f"Codigo da disciplina: {codigoCurso}\tNome da disciplina: {nomeCurso}")
 
-                    courseSyllabusSite = requests.get(
-                        f"https://matriculaweb.unb.br/graduacao/{courseSyllabusLink}")
-                    courseSyllabusSoup = BeautifulSoup(
-                        courseSyllabusSite.content,  features="lxml")
-                    courseSyllabusTables = courseSyllabusSoup.find_all(
+                    siteEmentaCurso = requests.get(
+                        f"https://matriculaweb.unb.br/graduacao/{linkEmentaCurso}")
+                    ementaCursoSoup = BeautifulSoup(
+                        siteEmentaCurso.content,  features="lxml")
+                    tabelasEmentaCurso = ementaCursoSoup.find_all(
                         "table", {"id": "datatable"})
 
-                    for courseSyllabusTable in courseSyllabusTables:
-                        courseSyllabusTrs = courseSyllabusTable.find_all("tr")
+                    for tabelaEmentaCurso in tabelasEmentaCurso:
+                        trsEmentaCurso = tabelaEmentaCurso.find_all("tr")
 
-                        if(courseSyllabusTrs.__len__() > 0):
-                            for courseSyllabusTr in courseSyllabusTrs:
-                                try:
-                                    syllabusTh: str = courseSyllabusTr.th.get_text()
-                                except:
-                                    syllabusTh: str = ""
+                        if(trsEmentaCurso.__len__() > 0):
+                            flagPulaTr = False
+                            for trIndice, trEmentaCurso in enumerate(trsEmentaCurso):
+                                # if last row had a double th
+                                if(flagPulaTr == True):
+                                    flagPulaTr = False
+                                    continue
 
-                                try:
-                                    syllabusTd: str = courseSyllabusTr.td.prettify()
-                                except:
-                                    syllabusTd: str = ""
+                                thEmenta: str = trEmentaCurso.th.get_text()
+                                tdEmenta: str = trEmentaCurso.td.prettify()
 
-                                if(syllabusTh == "Pré-requisitos"):
-                                    preRequisites = re.split(
-                                        r"<strong>\s+OU\s+<\/strong>", syllabusTd)
+                                if(trEmentaCurso.th.get('rowspan') == '2'):
+                                    flagPulaTr = True
+                                    tdEmenta = tdEmenta + \
+                                        trsEmentaCurso[trIndice+1].prettify()
+                                if(thEmenta == "Pré-requisitos"):
+                                    preRequisitos = re.split(
+                                        r"<strong>\s+OU\s+<\/strong>", tdEmenta)
 
-                                    for preRequisiteStr in preRequisites:
+                                    for preRequisitostr in preRequisitos:
                                         if(flagNoPreriquisites):
                                             break
-                                        preRequisitesDict = []
+                                        preRequisitosDict = []
 
-                                        preRequisiteDict = re.split(
-                                            r"<strong>\s+E\s+<\/strong>", preRequisiteStr)
+                                        PreRequisitosDict = re.split(
+                                            r"<strong>\s+E\s+<\/strong>", preRequisitostr)
 
-                                        for singlePreRequisiteHTML in preRequisiteDict:
-                                            singlePreRequisiteSoup = BeautifulSoup(
-                                                singlePreRequisiteHTML, features="lxml")
-                                            singlePreRequisite = singlePreRequisiteSoup.get_text()
-                                            singlePreRequisite = singlePreRequisite.strip()
+                                        for singlePreRequisitosHTML in PreRequisitosDict:
+                                            singlepreRequisitosoup = BeautifulSoup(
+                                                singlePreRequisitosHTML, features="lxml")
+                                            singlePreRequisitos = singlepreRequisitosoup.get_text()
+                                            singlePreRequisitos = singlePreRequisitos.strip()
 
-                                            if(singlePreRequisite == ""):
+                                            if(singlePreRequisitos == ""):
                                                 print("pre-requisito vazio")
                                                 break
 
-                                            if(re.search(r"Disciplina sem pré-requisitos", singlePreRequisite)):
+                                            if(re.search(r"Disciplina sem pré-requisitos", singlePreRequisitos)):
                                                 flagNoPreriquisites = True
                                                 break
 
-                                            singlePreRequisiteMatch = re.search(
-                                                r"\s*([A-Z#]+)\s*(\d+)\s*(.+)\s*", singlePreRequisite)
+                                            singlePreRequisitosMatch = re.search(
+                                                r"\s*([A-Z#]+)\s*(\d+)\s*(.+)\s*", singlePreRequisitos)
 
-                                            preRequisitesDict.append({
-                                                "departAcronym": singlePreRequisiteMatch.group(1),
-                                                "courseCode": singlePreRequisiteMatch.group(2),
-                                                "courseName": singlePreRequisiteMatch.group(3)
+                                            preRequisitosDict.append({
+                                                "departAcronym": singlePreRequisitosMatch.group(1),
+                                                "codigoCurso": singlePreRequisitosMatch.group(2),
+                                                "nomeCurso": singlePreRequisitosMatch.group(3)
                                             })
-                                        preRequisitesDictArray.append(
-                                            preRequisitesDict)
-
+                                        preRequisitosDictArray.append(
+                                            preRequisitosDict)
+                                if(thEmenta == "Órgão"):
+                                    orgaoCurso = BeautifulSoup(
+                                        tdEmenta, features="lxml").getText().strip()
+                                if(thEmenta == "Nível"):
+                                    nivelCurso = BeautifulSoup(
+                                        tdEmenta, features="lxml").getText().strip()
+                                if(thEmenta == "Início da Vigência em"):
+                                    incioVigenciaCurso = BeautifulSoup(
+                                        tdEmenta, features="lxml").getText().strip()
+                                if(thEmenta == "Ementa"):
+                                    ementaCurso = BeautifulSoup(
+                                        tdEmenta, features="lxml").getText().strip()
+                                if(thEmenta == "Programa"):
+                                    programaCurso = BeautifulSoup(
+                                        tdEmenta, features="lxml").getText().strip()
+                                if(thEmenta == "Bibliografia"):
+                                    bibliografiaCurso = BeautifulSoup(
+                                        tdEmenta, features="lxml").getText().strip()
                     coursesArray.append({
-                        "courseCode": courseCode,
-                        "courseName": courseName,
-                        "preRequisites": preRequisitesDictArray
+                        "codigo": codigoCurso,
+                        "nome": nomeCurso,
+                        "orgao": orgaoCurso,
+                        "nivel": nivelCurso,
+                        "inicioVigencia": incioVigenciaCurso,
+                        "preRequisitos": preRequisitosDictArray,
+                        "ementa": ementaCurso,
+                        "programa": programaCurso,
+                        "bibliografia": bibliografiaCurso
                     })
     sleep(1)
 
