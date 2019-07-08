@@ -61,6 +61,7 @@ for row in trs:
                     ementaCurso = ""
                     programaCurso = ""
                     bibliografiaCurso = ""
+                    creditosCurso = ""
 
                     linkOfertaCurso = departOfferTds[1].a["href"]
                     linkEmentaCurso = departOfferTds[2].a["href"].replace(
@@ -68,6 +69,72 @@ for row in trs:
 
                     print(
                         f"Codigo da disciplina: {codigoCurso}\tNome da disciplina: {nomeCurso}")
+
+                    siteOfertaCurso = requests.get(
+                        f"https://matriculaweb.unb.br/graduacao/{linkOfertaCurso}")
+                    ofertaCursoSoup = BeautifulSoup(
+                        siteOfertaCurso.content, features='lxml')
+                    tabelasOfertaCurso = ofertaCursoSoup.findAll(
+                        "table", {'id': 'datatable'})
+
+                    for tabelaOfertaCurso in tabelasOfertaCurso:
+                        camposThead = []
+
+                        if(not tabelaOfertaCurso.thead):
+                            # tabela cabeçalho
+                            trsOfertaCurso = tabelaOfertaCurso.findAll(
+                                "tr", recursive=False)
+
+                            for trOfertaCurso in trsOfertaCurso:
+                                thOferta: str = trOfertaCurso.th.get_text()
+                                tdOferta: str = trOfertaCurso.td.getText()
+
+                                # Creditos
+                                if(thOferta.find("Créditos") >= 0):
+                                    creditosCurso = tdOferta
+                        else:
+                            # tabelas de oferta
+                            oferta = {
+                                "turma": "",
+                                "vagas": "",
+                                "turno": "",
+                                "horario-local": [],
+                                "professor": "",
+                                "obs": ""
+                            }
+                            for campo in tabelaOfertaCurso.thead.tr.findAll("th"):
+                                camposThead.append(campo.getText().lower())
+
+                            trsOfertaCurso = tabelaOfertaCurso.tbody.findAll(
+                                "tr", recursive=False)
+
+                            tdsOfertaCurso = tabelaOfertaCurso.tbody.tr.findAll(
+                                "td", recursive=False)
+                            for tdOfertaCursoIndex, tdOfertaCurso in enumerate(tdsOfertaCurso):
+
+                                if(tdOfertaCursoIndex in [0, 2, 4, 5]):
+                                    oferta[camposThead[tdOfertaCursoIndex]
+                                           ] = tdOfertaCurso.getText()
+                                    continue
+
+                                if(tdOfertaCursoIndex == 1):
+                                    oferta["vagas"] = {
+                                        "total": tdOfertaCurso.findAll("td")[2].getText(),
+                                        "ocupadas": tdOfertaCurso.findAll("td")[5].getText(),
+                                        "restantes": tdOfertaCurso.findAll("td")[8].getText()}
+                                    continue
+
+                                if(tdOfertaCursoIndex == 3):
+                                    for tdOfertaCursoTable in tdOfertaCurso.findAll("table"):
+                                        tdOfertaCursoTableTds = tdOfertaCursoTable.findAll(
+                                            "td")
+                                        oferta["horario-local"].append({
+                                            "dia": tdOfertaCursoTableTds[0].getText(),
+                                            "inicio": tdOfertaCursoTableTds[1].getText(),
+                                            "termino": tdOfertaCursoTableTds[2].getText(),
+                                            "local": tdOfertaCursoTableTds[4].getText()
+                                        })
+                                        continue
 
                     siteEmentaCurso = requests.get(
                         f"https://matriculaweb.unb.br/graduacao/{linkEmentaCurso}")
@@ -157,10 +224,12 @@ for row in trs:
                         "preRequisitos": preRequisitosDictArray,
                         "ementa": ementaCurso,
                         "programa": programaCurso,
-                        "bibliografia": bibliografiaCurso
+                        "bibliografia": bibliografiaCurso,
+                        "creditos": creditosCurso,
+                        "oferta": oferta
                     })
     sleep(1)
 
-with open("./Courses-Information", "w", encoding='utf8') as file:
+with open("./Courses-Information.json", "w", encoding='utf8') as file:
     file.write(json.dumps(coursesArray))
     pass
