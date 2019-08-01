@@ -62,6 +62,7 @@ for row in trs:
                     programaCurso = ""
                     bibliografiaCurso = ""
                     creditosCurso = ""
+                    ofertaArray = []
 
                     linkOfertaCurso = departOfferTds[1].a["href"]
                     linkEmentaCurso = departOfferTds[2].a["href"].replace(
@@ -134,7 +135,9 @@ for row in trs:
                                             "termino": tdOfertaCursoTableTds[2].getText(),
                                             "local": tdOfertaCursoTableTds[4].getText()
                                         })
+
                                         continue
+                            ofertaArray.append(oferta)
 
                     siteEmentaCurso = requests.get(
                         f"https://matriculaweb.unb.br/graduacao/{linkEmentaCurso}")
@@ -226,7 +229,7 @@ for row in trs:
                         "programa": programaCurso,
                         "bibliografia": bibliografiaCurso,
                         "creditos": creditosCurso,
-                        "oferta": oferta
+                        "oferta": ofertaArray
                     })
     sleep(1)
 
